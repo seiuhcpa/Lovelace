@@ -22,59 +22,58 @@ class ADAConnector:
     def obtain_token(self):
         user = self.ada_user
         password = self.ada_pass
-        resp = requests.post(
-            f"{self.config['ada_url']}/api/users/token/access_token",
-            params=dict(username=user, password=password)
-        )
-        if resp.status_code == 200:
+        try:
+            resp = requests.post(
+                f"{self.config['ada_url']}/api/users/token/access_token",
+                params=dict(username=user, password=password)
+            )
+            resp.raise_for_status()
             ada_token = resp.headers["x-access-token"]
-        elif resp.status_code == 401:
-            ...  # handle failure to authorize
-        else:
-            ...  # handle unexpected response (server error?)
-        print(ada_token[:6])  # --> 'eyJhbG'
-        return ada_token
+            return ada_token
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+            if resp.status_code == 400:
+                # There are errors in the format of the template
+                print('Content: ' + resp.json().get("content"))
+                print('Message: ' + resp.json().get("message"))
+                print('Details: ' + resp.json().get("details"))
+            elif resp.status_code == 403:
+               print(f"Permission denied for affiliate {resp.json()['affiliate']}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
 
     def create_json_template(self, template_name):
-        json_data = open(self.config['data_staging_folder'] + '/' + "upload-template.json")
-        data = json.load(json_data)
-        resp = requests.post(
-            f"{self.config['ada_url']}/api/template/",
-            params={"affiliate": self.config['affiliate_name'], "name": template_name},
-            headers={"Authorization": f"Bearer {self.token}"},
-            json=data
-        )
-        if resp.status_code == 201:
-            ada_template = resp.json()["filename"]
-            return ada_template
-        elif resp.status_code == 401:
-            # There are errors in the format of the template
-            print(resp.json()["message"])
-            print(resp.json()["details"])
-        elif resp.status_code == 403:
-            print(f"Permission denied for affiliate {resp.json()['affiliate']}")
-        else:
-            pass
+        try:
+            json_data = open(self.config['data_staging_folder'] + '/' + "upload-template.json")
+            data = json.load(json_data)
+            resp = requests.post(
+                f"{self.config['ada_url']}/api/template/",
+                params={"affiliate": self.config['affiliate_name'], "name": template_name},
+                headers={"Authorization": f"Bearer {self.token}"},
+                json=data
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
 
     # Step 2 Upload Your Membership File (preferably in .csv format)
     def upload(self, file_path_name):
-        resp = requests.post(
-            f"{self.config['ada_url']}/api/uploads",
-            params={"affiliate": self.config['affiliate_name']},
-            files={"file": open(file_path_name)},
-            headers={"Authorization": f"Bearer {self.token}"}
-        )
-        if resp.status_code == 201:
-            affiliate_data = resp.json()["filename"]
-            return affiliate_data
-        elif resp.status_code == 401:
-            # Usually a data problem, such as an unsupported file type
-            print(resp.json()["message"])
-            print(resp.json()["details"])
-        elif resp.status_code == 403:
-            print(f"Permission denied for affiliate {resp.json()['affiliate']}")
-        else:
-            pass
+        try:
+            resp = requests.post(
+                f"{self.config['ada_url']}/api/uploads",
+                params={"affiliate": self.config['affiliate_name']},
+                files={"file": open(file_path_name)},
+                headers={"Authorization": f"Bearer {self.token}"}
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
 
     def get_blank_template(self):
         resp = requests.get(f"{self.config['ada_url']}/api/template/new")
@@ -94,31 +93,43 @@ class ADAConnector:
                     print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     def get_templates(self):
-        resp = requests.get(
-            f"{self.config['ada_url']}/api/templates",
-            params={"affiliate": self.config['affiliate_name']},
-            headers={"Authorization": f"Bearer {self.token}"}
-        )
-        return resp.json()
+        try:
+            resp = requests.get(
+                f"{self.config['ada_url']}/api/templates",
+                params={"affiliate": self.config['affiliate_name']},
+                headers={"Authorization": f"Bearer {self.token}"}
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
+
+
+
 
     # Step 4 Process the File
     def process_ada_file(self, ada_file, template_name):
-        resp = requests.post(
-            f"{self.config['ada_url']}/api/process",
-            params={"affiliate": self.config['affiliate_name'], "template": template_name, "data": ada_file},
-            headers={"Authorization": f"Bearer {self.token}"},
-        )
-        if resp.status_code == 201:
-            return resp.json()
-        elif resp.status_code == 400:
-            # There are errors in the format of the template
-            print('Content: ' + resp.json().get("content"))
-            print('Message: ' + resp.json().get("message"))
-            print('Details: ' + resp.json().get("details"))
-        elif resp.status_code == 403:
-            print(f"Permission denied for affiliate {resp.json()['affiliate']}")
-        else:
-            ...  # handle unexpected response (server error?)
+        try:
+            resp = requests.post(
+                f"{self.config['ada_url']}/api/process",
+                params={"affiliate": self.config['affiliate_name'], "template": template_name, "data": ada_file},
+                headers={"Authorization": f"Bearer {self.token}"},
+            )
+            resp.raise_for_status()
+            return resp
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+            if resp.status_code == 400:
+                # There are errors in the format of the template
+                print('Content: ' + resp.json().get("content"))
+                print('Message: ' + resp.json().get("message"))
+                print('Details: ' + resp.json().get("details"))
+            elif resp.status_code == 403:
+               print(f"Permission denied for affiliate {resp.json()['affiliate']}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
 
     # Step 5 Preview the File
     def ada_get_summary(self, ada_file):
@@ -127,7 +138,7 @@ class ADAConnector:
             params={"affiliate": self.config['affiliate_name'], "ada_file": ada_file},
             headers={"Authorization": f"Bearer {self.token}"},
         )
-        return resp.json()
+        return resp
 
     # Step 6 Confirm Submission
     def ada_patch_summary(self, ada_file):
@@ -136,7 +147,7 @@ class ADAConnector:
             params={"affiliate": self.config['affiliate_name'], "ada_file": ada_file},
             headers={"Authorization": f"Bearer {self.token}"},
         )
-        return resp.json()
+        return resp
 
     def get_default_template(self):
         resp = requests.get(f"{self.config['ada_url']}/api/template/new")
@@ -147,6 +158,14 @@ class ADAConnector:
         for x in template_list:
             if x['name'] == template_name:
                 return f"{x['created']}{'/'}{x['name']}"
+
+    def check_catalyist_avalabilty(self,timestamp):
+        resp = requests.get(f"{self.config['ada_url']}/api/catalist/check")
+        if resp.status_code == 201:
+            return resp
+        else:
+            print(resp.json()["message"])
+            print(resp.json()["details"])
 
     def upload_file_to_ada(self, file_path_name, template_name=None):
         # uploads membership file to ada needs file path name
@@ -163,11 +182,15 @@ class ADAConnector:
                 template = f"{list_of_template[0]['created']}{'/'}{list_of_template[0]['name']}"
         else:
             template = self.get_ada_template_name(template_name)
-        data = "/".join(affiliate_data.split("/")[2:])
+        data = "/".join(affiliate_data['filename'].split("/")[2:])
         submit = self.process_ada_file(template_name=template, ada_file=data)
         # get summary of the processed file
-        ada_file_path = "/".join(submit['full_path'].split("/")[2:-1])
+        submission_info = submit.json()
+        ada_file_path = "/".join(submission_info['full_path'].split("/")[2:-1])
         summary = self.ada_get_summary(ada_file=ada_file_path)
         print(summary)
         confirm = self.ada_patch_summary(ada_file=ada_file_path)
         print(confirm)
+        return {'summary': summary,
+                'submission': submit,
+                'confirmation': confirm}
