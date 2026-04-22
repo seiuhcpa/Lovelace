@@ -106,9 +106,6 @@ class ADAConnector:
         except requests.exceptions.RequestException as err:
             print("A request error occurred:", err)
 
-
-
-
     # Step 4 Process the File
     def process_ada_file(self, ada_file, template_name):
         try:
@@ -159,9 +156,26 @@ class ADAConnector:
             if x['name'] == template_name:
                 return f"{x['created']}{'/'}{x['name']}"
 
-    def check_catalyist_avalabilty(self,timestamp):
-        resp = requests.get(f"{self.config['ada_url']}/api/catalist/check")
-        if resp.status_code == 201:
+    def check_catalyist_avalabilty(self,affiliate,timestamp):
+        # Timestamp value should be in the format of 2024-01-01T00:00:00 to match output by ADA.
+        resp = requests.get(f"{self.config['ada_url']}/api/catalist/check",
+                            params={"affiliate": affiliate, "timestamp": timestamp},
+                            headers={"Authorization": f"Bearer {self.token}"})
+        if resp.status_code == 200:
+            if resp.text == 'true':
+                return True
+            else:
+                return False
+        else:
+            print(resp.json()["message"])
+            print(resp.json()["details"])
+
+    def request_catalyst_file(self,affiliate,timestamp,export_format='parquet'):
+        # Timestamp value should be in the format of 2024-01-01T00:00:00 to match output by ADA.
+        resp = requests.post(f"{self.config['ada_url']}/api/catalist/download",
+                            params={"affiliate": affiliate, "timestamp": timestamp, "format": export_format},
+                            headers={"Authorization": f"Bearer {self.token}"})
+        if resp.status_code == 200:
             return resp
         else:
             print(resp.json()["message"])
