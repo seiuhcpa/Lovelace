@@ -59,6 +59,20 @@ class ADAConnector:
         except requests.exceptions.RequestException as err:
             print("A request error occurred:", err)
 
+    def get_uploads(self):
+        try:
+            resp = requests.get(
+                f"{self.config['ada_url']}/api/uploads",
+                params={"affiliate": self.config['affiliate_name']},
+                headers={"Authorization": f"Bearer {self.token}"}
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+        except requests.exceptions.RequestException as err:
+            print("A request error occurred:", err)
+
     # Step 2 Upload Your Membership File (preferably in .csv format)
     def upload(self, file_path_name):
         try:
