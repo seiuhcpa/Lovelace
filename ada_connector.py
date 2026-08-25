@@ -25,7 +25,7 @@ class ADAConnector:
         try:
             resp = requests.post(
                 f"{self.config['ada_url']}/api/users/token/access_token",
-                data=dict(username=user, password=password)
+                params=dict(username=user, password=password)
             )
             resp.raise_for_status()
             ada_token = resp.headers["x-access-token"]
